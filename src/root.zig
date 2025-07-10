@@ -5,6 +5,10 @@ const std = @import("std");
 const testing = std.testing;
 
 pub const tree_math = @import("tree_math.zig");
+pub const binary_tree = @import("binary_tree.zig");
+pub const binary_tree_diff = @import("binary_tree_diff.zig");
+pub const tls_codec = @import("tls_codec.zig");
+pub const credentials = @import("credentials.zig");
 
 pub export fn add(a: i32, b: i32) i32 {
     return a + b;
