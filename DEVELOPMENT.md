@@ -77,16 +77,75 @@ Next files to create:
 4. **Testability**: Good separation allows focused unit testing
 5. **Extensibility**: Generic designs will support future MLS extensions
 
-## 🎯 **Immediate Next Session Goals**
-1. Start with `cipher_suite.zig` - define the crypto primitives MLS will use
-2. Look at Zig's `std.crypto` module for available algorithms
-3. Port the cipher suite definitions from OpenMLS
-4. Begin implementing key generation and basic signature operations
+## 🎯 **Phase 5: Basic Group Operations (Next Goals)**
 
-## 📊 **Current Test Status**
-- **Total Tests**: 32 passing
+**Status**: Ready to begin - Phase 4 (Cryptographic Primitives & Key Packages) is complete!
+
+### **5.1 Leaf Nodes Implementation** ⭐ **Start Here**
+1. **File**: Create `src/leaf_node.zig`
+2. **Core Features**:
+   - Implement `LeafNode` creation with proper signing
+   - Add `LeafNodeTBS` (To Be Signed) structure for signature validation
+   - Integrate with existing `KeyPackage` and `Credential` types
+   - Support for `LeafNodeSource` variants (KeyPackage, Update, Commit)
+3. **Key Operations**:
+   - `createLeafNode()` - generate properly signed leaf nodes
+   - `validateLeafNode()` - verify signatures and capabilities
+   - `updateLeafNode()` - create updates for existing members
+4. **References**: `samples/openmls/openmls/src/treesync/node/leaf_node/`
+
+### **5.2 TreeKEM Integration**
+1. **File**: Create `src/tree_kem.zig` 
+2. **Core Features**:
+   - Integrate `BinaryTree` with `LeafNode` data
+   - Implement TreeKEM encryption/decryption operations
+   - Add parent node key derivation
+   - Support for tree synchronization
+3. **Key Operations**:
+   - `encryptToPath()` - encrypt along tree path
+   - `decryptFromPath()` - decrypt received updates
+   - `updateTreePath()` - refresh keys along path
+4. **References**: `samples/openmls/openmls/src/treesync/`
+
+### **5.3 Simple Group Creation**
+1. **File**: Create `src/mls_group.zig`
+2. **Core Features**:
+   - Basic MLS group with 2-3 members
+   - Group state management
+   - Welcome message processing
+   - Basic Add/Remove proposal handling
+3. **Key Operations**:
+   - `createGroup()` - initialize new group with founder
+   - `addMember()` - process Add proposals
+   - `processWelcome()` - join existing group
+4. **References**: `samples/openmls/openmls/src/group/`
+
+### **Implementation Order & Dependencies**
+```
+1. leaf_node.zig     ← Uses: key_package.zig, cipher_suite.zig, credentials.zig
+   ↓
+2. tree_kem.zig      ← Uses: leaf_node.zig, binary_tree.zig, cipher_suite.zig  
+   ↓
+3. mls_group.zig     ← Uses: tree_kem.zig, key_package.zig, all above
+```
+
+### **Key Design Decisions Needed**
+1. **Tree Sync Strategy**: How to handle concurrent updates and conflicts
+2. **Message Processing**: Synchronous vs asynchronous processing model
+3. **State Storage**: In-memory vs persistent storage interface
+4. **Error Handling**: How to handle malformed messages and crypto failures
+
+### **Testing Strategy for Phase 5**
+1. **Unit Tests**: Each component (LeafNode, TreeKEM, Group) with focused tests
+2. **Integration Tests**: Cross-module tests with real key material
+3. **Interop Tests**: Use OpenMLS test vectors for compatibility validation
+4. **Property Tests**: Verify TreeKEM security properties
+
+## 📊 **Current Test Status** (Post Phase 4)
+- **Total Tests**: 23 passing (cipher_suite.zig + key_package.zig)
 - **Coverage**: All implemented modules have comprehensive tests
 - **Patterns**: Each module tests creation, serialization, and core operations
+- **Memory Safety**: All tests pass with no memory leaks
 
 ## 🔍 **Useful References**
 - **OpenMLS Rust Implementation**: `samples/openmls/` - excellent reference for understanding
@@ -100,4 +159,36 @@ Next files to create:
 - **Reference Tests**: OpenMLS test vectors will be valuable for compatibility validation
 - **Property Testing**: Consider adding property-based tests for tree operations
 
-The codebase is in excellent shape to continue! The foundational work done here will make the cryptographic components much easier to implement.
+## 🔄 **Handoff Notes for Phase 5**
+
+### **Quick Start Guide**
+1. **Begin with**: `src/leaf_node.zig` - this is the critical next step
+2. **Reference**: Look at `samples/openmls/openmls/src/treesync/node/leaf_node/` for structure
+3. **Pattern**: Follow the same structure as `key_package.zig` - data structures, operations, tests
+4. **Integration**: LeafNode will use existing `KeyPackage`, `Credential`, and `cipher_suite` modules
+
+### **Key Implementation Hints**
+1. **LeafNode Signing**: Use `signWithLabel()` from `key_package.zig` with label `"LeafNodeTBS"`
+2. **Tree Integration**: The `BinaryTree<LeafNode, ParentNode>` pattern is already established
+3. **Error Handling**: Follow the existing pattern of specific error types per module
+4. **Memory Management**: Use the same allocator patterns - each struct owns its data
+
+### **Critical Design Considerations**
+1. **Signature Validation**: LeafNode signatures are crucial for MLS security
+2. **Tree Consistency**: TreeKEM requires consistent tree state across all members  
+3. **Capability Validation**: Extensions and proposals must match declared capabilities
+4. **Key Freshness**: TreeKEM keys must be properly derived and rotated
+
+### **Available Foundation**
+- ✅ **Complete crypto stack**: All signing, HKDF, hashing operations ready
+- ✅ **Key management**: KeyPackage creation and validation working
+- ✅ **Tree operations**: Binary tree with diff operations fully implemented
+- ✅ **Serialization**: TLS codec handles all wire format needs
+- ✅ **Testing framework**: Comprehensive test patterns established
+
+### **Expected Complexity**
+- **LeafNode**: ~400-500 lines (Medium complexity - mostly data structure + signing)
+- **TreeKEM**: ~600-800 lines (High complexity - crypto + tree operations)  
+- **MLS Group**: ~800-1200 lines (Very high complexity - state management + protocols)
+
+The foundation is **extremely solid** - Phase 5 should build naturally on the existing architecture!

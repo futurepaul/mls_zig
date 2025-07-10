@@ -58,6 +58,31 @@ This document tracks the progress of porting OpenMLS tests from Rust to Zig.
 - [x] KeyPackage data structures (LeafNode, Extensions, Capabilities)
 - [x] KeyPackageBundle for managing public/private key pairs
 
+## Phase 5: Basic Group Operations (Next Phase - Ready to Start)
+
+### 5.1 Leaf Nodes (Start Here)
+- [ ] LeafNode creation with proper MLS signing
+- [ ] LeafNodeTBS (To Be Signed) structure for signature validation  
+- [ ] Integration with KeyPackage and Credential types
+- [ ] Support for LeafNodeSource variants (KeyPackage, Update, Commit)
+- [ ] LeafNode validation and signature verification
+
+### 5.2 TreeKEM Integration  
+- [ ] Integrate BinaryTree with LeafNode cryptographic material
+- [ ] TreeKEM encryption/decryption along tree paths
+- [ ] Parent node key derivation for tree structure
+- [ ] Tree synchronization and update operations
+- [ ] Path encryption for secure group key updates
+
+### 5.3 Simple Group Creation
+- [ ] Basic MLS group with 2-3 members
+- [ ] Group state management and initialization
+- [ ] Welcome message generation and processing
+- [ ] Basic Add/Remove proposal handling
+- [ ] Group membership validation and updates
+
+**Implementation Files**: `src/leaf_node.zig` → `src/tree_kem.zig` → `src/mls_group.zig`
+
 ## Notes
 - TreeMath implemented in `src/tree_math.zig`
 - Binary tree structure implemented in `src/binary_tree.zig`
