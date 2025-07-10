@@ -46,12 +46,26 @@ This document tracks the progress of porting OpenMLS tests from Rust to Zig.
   - [x] Generic Credential wrapper
   - [x] Conversion between BasicCredential and Credential
 
+## Phase 4: Cryptographic Primitives & Key Packages
+- [x] Cipher Suite Framework - MLS cipher suite definitions and component extraction
+- [x] Secret wrapper type for secure key material handling  
+- [x] Hash functions (SHA-256/384/512) with MLS label system
+- [x] HKDF key derivation (extract/expand) with MLS labels
+- [x] Key pair generation for Ed25519 and ECDSA P-256
+- [x] HPKE key pair generation for X25519 and P-256
+- [x] Signature operations with MLS labeled signing
+- [x] Signature verification with proper label handling
+- [x] KeyPackage data structures (LeafNode, Extensions, Capabilities)
+- [x] KeyPackageBundle for managing public/private key pairs
+
 ## Notes
 - TreeMath implemented in `src/tree_math.zig`
 - Binary tree structure implemented in `src/binary_tree.zig`
 - Tree diff operations implemented in `src/binary_tree_diff.zig`
 - TLS codec framework implemented in `src/tls_codec.zig`
 - Credential types implemented in `src/credentials.zig`
+- Cipher suites and crypto primitives implemented in `src/cipher_suite.zig`
+- Key packages and signature operations implemented in `src/key_package.zig`
 - All index types use wrapper structs around u32
 - TreeNodeIndex is a union(enum) in Zig vs enum in Rust
 - Method names changed from `u32()` to `asU32()` to avoid shadowing primitives

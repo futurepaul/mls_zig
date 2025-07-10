@@ -9,6 +9,8 @@ pub const binary_tree = @import("binary_tree.zig");
 pub const binary_tree_diff = @import("binary_tree_diff.zig");
 pub const tls_codec = @import("tls_codec.zig");
 pub const credentials = @import("credentials.zig");
+pub const cipher_suite = @import("cipher_suite.zig");
+pub const key_package = @import("key_package.zig");
 
 pub export fn add(a: i32, b: i32) i32 {
     return a + b;
