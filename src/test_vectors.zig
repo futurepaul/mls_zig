@@ -55,7 +55,15 @@ pub const TestVectorRunner = struct {
         std.log.info("Running {} crypto-basics test cases", .{test_cases.items.len});
         
         for (test_cases.items) |test_case| {
-            const cipher_suite_num = test_case.object.get("cipher_suite").?.integer;
+            const cipher_suite_field = test_case.object.get("cipher_suite") orelse {
+                std.log.err("Missing 'cipher_suite' field in crypto-basics test case", .{});
+                return error.MissingTestVectorData;
+            };
+            if (cipher_suite_field != .integer) {
+                std.log.err("Invalid 'cipher_suite' field type in crypto-basics test case", .{});
+                return error.InvalidTestVectorData;
+            }
+            const cipher_suite_num = cipher_suite_field.integer;
             
             // Convert cipher suite number to enum
             const cipher_suite: CipherSuite = @enumFromInt(@as(u16, @intCast(cipher_suite_num)));
@@ -97,8 +105,22 @@ pub const TestVectorRunner = struct {
         std.log.info("Running {} tree-math test cases", .{test_cases.items.len});
         
         for (test_cases.items) |test_case| {
-            const n_leaves = test_case.object.get("n_leaves").?.integer;
-            const n_nodes = test_case.object.get("n_nodes").?.integer;
+            const n_leaves_field = test_case.object.get("n_leaves") orelse {
+                std.log.err("Missing 'n_leaves' field in tree-math test case", .{});
+                return error.MissingTestVectorData;
+            };
+            const n_nodes_field = test_case.object.get("n_nodes") orelse {
+                std.log.err("Missing 'n_nodes' field in tree-math test case", .{});
+                return error.MissingTestVectorData;
+            };
+            
+            if (n_leaves_field != .integer or n_nodes_field != .integer) {
+                std.log.err("Invalid field types in tree-math test case", .{});
+                return error.InvalidTestVectorData;
+            }
+            
+            const n_leaves = n_leaves_field.integer;
+            const n_nodes = n_nodes_field.integer;
             
             std.log.info("Testing tree with {} leaves, {} nodes", .{ n_leaves, n_nodes });
             
@@ -119,8 +141,22 @@ pub const TestVectorRunner = struct {
         std.log.info("Running {} TreeKEM test cases", .{test_cases.items.len});
         
         for (test_cases.items) |test_case| {
-            const cipher_suite = test_case.object.get("cipher_suite").?.integer;
-            const epoch = test_case.object.get("epoch").?.integer;
+            const cipher_suite_field = test_case.object.get("cipher_suite") orelse {
+                std.log.err("Missing 'cipher_suite' field in TreeKEM test case", .{});
+                return error.MissingTestVectorData;
+            };
+            const epoch_field = test_case.object.get("epoch") orelse {
+                std.log.err("Missing 'epoch' field in TreeKEM test case", .{});
+                return error.MissingTestVectorData;
+            };
+            
+            if (cipher_suite_field != .integer or epoch_field != .integer) {
+                std.log.err("Invalid field types in TreeKEM test case", .{});
+                return error.InvalidTestVectorData;
+            }
+            
+            const cipher_suite = cipher_suite_field.integer;
+            const epoch = epoch_field.integer;
             
             std.log.info("Testing TreeKEM cipher suite: {}, epoch: {}", .{ cipher_suite, epoch });
             
@@ -141,7 +177,15 @@ pub const TestVectorRunner = struct {
         std.log.info("Running {} key-schedule test cases", .{test_cases.items.len});
         
         for (test_cases.items) |test_case| {
-            const cipher_suite_num = test_case.object.get("cipher_suite").?.integer;
+            const cipher_suite_field = test_case.object.get("cipher_suite") orelse {
+                std.log.err("Missing 'cipher_suite' field in key-schedule test case", .{});
+                return error.MissingTestVectorData;
+            };
+            if (cipher_suite_field != .integer) {
+                std.log.err("Invalid 'cipher_suite' field type in key-schedule test case", .{});
+                return error.InvalidTestVectorData;
+            }
+            const cipher_suite_num = cipher_suite_field.integer;
             const cipher_suite: CipherSuite = @enumFromInt(@as(u16, @intCast(cipher_suite_num)));
             
             // Skip unsupported cipher suites
@@ -173,7 +217,15 @@ pub const TestVectorRunner = struct {
         std.log.info("Running {} secret-tree test cases", .{test_cases.items.len});
         
         for (test_cases.items) |test_case| {
-            const cipher_suite = test_case.object.get("cipher_suite").?.integer;
+            const cipher_suite_field = test_case.object.get("cipher_suite") orelse {
+                std.log.err("Missing 'cipher_suite' field in secret-tree test case", .{});
+                return error.MissingTestVectorData;
+            };
+            if (cipher_suite_field != .integer) {
+                std.log.err("Invalid 'cipher_suite' field type in secret-tree test case", .{});
+                return error.InvalidTestVectorData;
+            }
+            const cipher_suite = cipher_suite_field.integer;
             std.log.info("Testing secret tree cipher suite: {}", .{cipher_suite});
             
             try self.testSecretTreeOperations(test_case);
@@ -750,10 +802,148 @@ pub const TestVectorRunner = struct {
     }
     
     fn testSecretTreeOperations(self: *const TestVectorRunner, test_case: json.Value) !void {
-        _ = self;
-        _ = test_case;
-        std.log.info("  secret_tree operations test", .{});
-        // TODO: Implement secret tree operations test
+        const cipher_suite_field = test_case.object.get("cipher_suite") orelse {
+            std.log.err("Missing 'cipher_suite' field in secret-tree test case", .{});
+            return error.MissingTestVectorData;
+        };
+        if (cipher_suite_field != .integer) {
+            std.log.err("Invalid 'cipher_suite' field type in secret-tree test case", .{});
+            return error.InvalidTestVectorData;
+        }
+        const cipher_suite_num = cipher_suite_field.integer;
+        const cipher_suite: CipherSuite = @enumFromInt(@as(u16, @intCast(cipher_suite_num)));
+        
+        // Skip unsupported cipher suites
+        if (!cipher_suite.isSupported()) {
+            std.log.info("  ⏸️  Secret tree operations test (unsupported cipher suite {})", .{cipher_suite_num});
+            return;
+        }
+        
+        std.log.info("  🌳 Testing secret tree operations for cipher suite {}", .{cipher_suite_num});
+        
+        // Get encryption secret
+        const encryption_secret_hex = test_case.object.get("encryption_secret") orelse {
+            std.log.err("Missing 'encryption_secret' field in secret-tree test case", .{});
+            return error.MissingTestVectorData;
+        };
+        if (encryption_secret_hex != .string) {
+            std.log.err("Invalid 'encryption_secret' field type in secret-tree test case", .{});
+            return error.InvalidTestVectorData;
+        }
+        
+        const encryption_secret_data = try hexToBytes(self.allocator, encryption_secret_hex.string);
+        defer self.allocator.free(encryption_secret_data);
+        
+        std.log.info("    Encryption secret: {} bytes", .{encryption_secret_data.len});
+        
+        // Test sender data derivation
+        if (test_case.object.get("sender_data")) |sender_data| {
+            try self.testSenderDataDerivation(cipher_suite, encryption_secret_data, sender_data);
+        }
+        
+        // Test leaf key derivations
+        if (test_case.object.get("leaves")) |leaves| {
+            try self.testLeafKeyDerivations(cipher_suite, encryption_secret_data, leaves);
+        }
+        
+        std.log.info("    ✅ Secret tree operations test completed", .{});
+    }
+    
+    fn testSenderDataDerivation(self: *const TestVectorRunner, cipher_suite: CipherSuite, encryption_secret: []const u8, sender_data: json.Value) !void {
+        // Extract expected values
+        const sender_data_secret_hex = sender_data.object.get("sender_data_secret") orelse {
+            std.log.err("Missing 'sender_data_secret' in sender_data", .{});
+            return error.MissingTestVectorData;
+        };
+        const expected_key_hex = sender_data.object.get("key") orelse {
+            std.log.err("Missing 'key' in sender_data", .{});
+            return error.MissingTestVectorData;
+        };
+        const expected_nonce_hex = sender_data.object.get("nonce") orelse {
+            std.log.err("Missing 'nonce' in sender_data", .{});
+            return error.MissingTestVectorData;
+        };
+        
+        if (sender_data_secret_hex != .string or expected_key_hex != .string or expected_nonce_hex != .string) {
+            std.log.err("Invalid field types in sender_data", .{});
+            return error.InvalidTestVectorData;
+        }
+        
+        const expected_sender_secret = try hexToBytes(self.allocator, sender_data_secret_hex.string);
+        defer self.allocator.free(expected_sender_secret);
+        
+        const expected_key = try hexToBytes(self.allocator, expected_key_hex.string);
+        defer self.allocator.free(expected_key);
+        
+        const expected_nonce = try hexToBytes(self.allocator, expected_nonce_hex.string);
+        defer self.allocator.free(expected_nonce);
+        
+        // Test sender data secret derivation: derive_secret(encryption_secret, "sender data")
+        var derived_sender_secret = try cipher_suite.deriveSecret(
+            self.allocator,
+            encryption_secret,
+            "sender data",
+            &[_]u8{} // empty context
+        );
+        defer derived_sender_secret.deinit();
+        
+        // Verify sender data secret
+        if (!std.mem.eql(u8, expected_sender_secret, derived_sender_secret.asSlice())) {
+            const result_hex = try bytesToHex(self.allocator, derived_sender_secret.asSlice());
+            defer self.allocator.free(result_hex);
+            std.log.err("    ❌ Sender data secret derivation FAILED", .{});
+            std.log.err("      Expected: {s}", .{sender_data_secret_hex.string});
+            std.log.err("      Got:      {s}", .{result_hex});
+            return error.SenderDataSecretMismatch;
+        }
+        
+        std.log.info("      ✅ Sender data secret derivation passed", .{});
+        
+        // TODO: Test sender data key/nonce derivation when we have AEAD implementation
+        std.log.info("      ⏸️  Sender data key/nonce derivation (TODO: needs AEAD implementation)", .{});
+        std.log.info("        Expected key: {} bytes, nonce: {} bytes", .{expected_key.len, expected_nonce.len});
+    }
+    
+    fn testLeafKeyDerivations(self: *const TestVectorRunner, cipher_suite: CipherSuite, encryption_secret: []const u8, leaves: json.Value) !void {
+        _ = self; // TODO: Use when implementing SecretTree
+        _ = cipher_suite; // TODO: Use when implementing SecretTree
+        _ = encryption_secret; // TODO: Use when implementing SecretTree
+        if (leaves != .array) {
+            std.log.err("Invalid 'leaves' field type - expected array", .{});
+            return error.InvalidTestVectorData;
+        }
+        
+        for (leaves.array.items, 0..) |leaf_array, leaf_index| {
+            if (leaf_array != .array) {
+                std.log.err("Invalid leaf array type at index {}", .{leaf_index});
+                return error.InvalidTestVectorData;
+            }
+            
+            std.log.info("      Testing leaf {}", .{leaf_index});
+            
+            for (leaf_array.array.items, 0..) |generation_obj, gen_index| {
+                const generation_field = generation_obj.object.get("generation") orelse {
+                    std.log.err("Missing 'generation' field in leaf", .{});
+                    return error.MissingTestVectorData;
+                };
+                
+                if (generation_field != .integer) {
+                    std.log.err("Invalid 'generation' field type", .{});
+                    return error.InvalidTestVectorData;
+                }
+                
+                const generation = @as(u32, @intCast(generation_field.integer));
+                std.log.info("        Generation {}: testing key derivation", .{generation});
+                
+                // TODO: Implement secret tree leaf key derivation when we have the secret tree module
+                // This would involve:
+                // 1. Create SecretTree from encryption_secret  
+                // 2. Derive keys for specific leaf and generation
+                // 3. Compare with expected application_key, application_nonce, handshake_key, handshake_nonce
+                std.log.info("          ⏸️  Leaf key derivation for gen {} (TODO: needs SecretTree implementation)", .{generation});
+                _ = gen_index; // TODO: Use when implementing actual validation
+            }
+        }
     }
     
     fn testMessageProtectionOperations(self: *const TestVectorRunner, test_case: json.Value) !void {
@@ -1179,11 +1369,10 @@ test "tree-math test vectors" {
     try runner.runTreeMath();
 }
 
-// Temporarily disabled to focus on key schedule debugging
-// test "treekem test vectors" {
-//     var runner = TestVectorRunner.init(testing.allocator);
-//     try runner.runTreeKEM();
-// }
+test "treekem test vectors" {
+    var runner = TestVectorRunner.init(testing.allocator);
+    try runner.runTreeKEM();
+}
 
 test "key-schedule test vectors" {
     var runner = TestVectorRunner.init(testing.allocator);

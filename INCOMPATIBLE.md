@@ -89,14 +89,30 @@ var compatible_secret = try cipher_suite.deriveSecret(
 );
 ```
 
+### OpenMLS Analysis Results
+
+**OpenMLS Implementation Pattern**:
+1. `derive_secret(exporter_secret, label)` - where `label` is a **string**
+2. `kdf_expand_label(result, "exported", Hash(context), length)`
+
+**Test Vector Analysis**:
+- Labels in test vectors appear to be **binary data** (32 bytes hex-encoded)
+- Example: `9ba13d54ecdec7cbefcb47b4268d7b1990fabc6d6e67681e167959389d84e4e4`
+- These don't decode to readable UTF-8 strings
+
+**Our Implementation**:
+- Updated to match OpenMLS two-step process
+- Currently produces result: `893c4f17df05f4fd3ca4938b751688f80dd73230e76aafcbdd3d4948f14a79d8`
+- Still differs from expected: `dbce4e25e59ab4dfa6f6200f113ed08393cf6e7286d024811141c6a4dd11c0cb`
+
 ### Resolution Status
 
 - [x] Issue identified and characterized
 - [x] Test cases created for validation
-- [ ] OpenMLS source code analysis
-- [ ] RFC interpretation clarification
-- [ ] Implementation fix
-- [ ] Verification with test vectors
+- [x] OpenMLS source code analysis completed
+- [x] Two-step derivation pattern implemented
+- [ ] Test vector label format resolution
+- [ ] Full compatibility verification
 
 ---
 

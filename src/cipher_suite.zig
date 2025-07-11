@@ -364,8 +364,9 @@ pub const CipherSuite = enum(u16) {
         context: []const u8,
         length: u16,
     ) !Secret {
-        // MLS exporter secret derivation follows the pattern:
-        // Derive-Secret(exporter_secret, label, Hash(context))
+        // OpenMLS exporter secret derivation follows a two-step pattern:
+        // 1. derive_secret(exporter_secret, label) - treat label as string  
+        // 2. kdf_expand_label(result, "exported", Hash(context), length)
         
         // First, hash the context
         const hash_len = self.hashLength();
@@ -384,8 +385,14 @@ pub const CipherSuite = enum(u16) {
             },
         }
         
-        // Then derive the secret using the hashed context
-        return self.hkdfExpandLabel(allocator, exporter_secret, label, context_hash, length);
+        // Step 1: derive_secret(exporter_secret, label) - treat binary label as string bytes
+        // OpenMLS treats label as string, so we pass the binary label data directly to deriveSecret
+        // which will treat it as a UTF-8 string internally 
+        var intermediate_secret = try self.deriveSecret(allocator, exporter_secret, label, &[_]u8{});
+        defer intermediate_secret.deinit();
+        
+        // Step 2: kdf_expand_label(result, "exported", Hash(context), length) 
+        return self.hkdfExpandLabel(allocator, intermediate_secret.asSlice(), "exported", context_hash, length);
     }
 };
 
