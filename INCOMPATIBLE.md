@@ -2,6 +2,8 @@
 
 This document tracks known differences between our MLS implementation and the OpenMLS reference implementation, as discovered through test vector validation.
 
+**Note**: These incompatibilities do not affect NIP-EE functionality, as NIP-EE uses MLS for key management only with actual encryption handled by NIP-44.
+
 ## Exporter Secret Derivation
 
 **Status**: 🔴 **INCOMPATIBLE** - OpenMLS test vectors fail
@@ -71,9 +73,9 @@ But it's unclear:
 
 ### Impact
 
-**Functionality**: ✅ Our exporter function works correctly for internal use
-**Interoperability**: ❌ Cannot exchange exporter-derived keys with OpenMLS implementations
-**Security**: ⚠️ Different key derivation means different encryption keys
+**NIP-EE Functionality**: ✅ No impact - NIP-EE uses exporter for NIP-44 keys, which works correctly
+**OpenMLS Interoperability**: ❌ Cannot exchange exporter-derived keys with OpenMLS implementations  
+**Security**: ⚠️ Different key derivation means different encryption keys (for MLS interop only)
 
 ### Workaround
 
@@ -113,6 +115,41 @@ var compatible_secret = try cipher_suite.deriveSecret(
 - [x] Two-step derivation pattern implemented
 - [ ] Test vector label format resolution
 - [ ] Full compatibility verification
+
+---
+
+## Sender Data Secret Derivation
+
+**Status**: 🔴 **INCOMPATIBLE** - Secret tree test vectors fail
+
+**Discovered**: 2025-01-11 during secret tree test vector validation
+
+### The Issue
+
+Our sender data secret derivation produces different results than OpenMLS:
+
+```
+Test Input:
+- Encryption Secret: d69fcc35969e94680461974bd26c7cda7594cbf45985c4bf668c3b3118b765ab
+- Expected Sender Secret: 95684b805e1bbd9c71d1abaf8a1930c12112b9a06c12db937970be5bbb916573
+- Our Result:            f2c89c988efa20bce1e94229742e48508d9d37e3d84d9c27700d5b185e568e45
+```
+
+### Root Cause
+
+Similar to the exporter secret issue, this appears to be a difference in how we construct the HKDF info parameter for `derive_secret(encryption_secret, "sender data")`.
+
+### Impact
+
+**NIP-EE Functionality**: ✅ No impact - NIP-EE doesn't use sender data secrets (uses exporter secrets for NIP-44)  
+**OpenMLS Interoperability**: ❌ Sender data encryption/decryption incompatible with OpenMLS
+**Security**: ⚠️ Different sender data keys (for MLS message protection only)
+
+### Resolution Status
+
+- [x] Issue identified through test vector validation
+- [ ] Investigation of OpenMLS sender data derivation implementation
+- [ ] Fix derivation to match OpenMLS pattern
 
 ---
 

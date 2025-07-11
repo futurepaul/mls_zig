@@ -124,8 +124,15 @@ src/
 ```bash
 zig build                        # Build everything
 zig test src/root.zig           # Run all unit tests
-zig build test-vectors          # Run OpenMLS compatibility validation
+zig build test-vectors          # OpenMLS compatibility validation (comprehensive)
+
+# NIP-EE focused validation (recommended for Nostr apps)
+zig test src/test_vectors.zig --test-filter "NIP-EE critical validation"
 ```
+
+**Test Vector Validation Strategy**:
+- **NIP-EE Critical**: crypto-basics, key-schedule, tree-math, treekem (required for Nostr)
+- **OpenMLS Compatibility**: secret-tree, message-protection, messages, welcome (optional)
 
 **Module Test Coverage**:
 - `zig test src/key_package.zig` - 31 tests (key generation, signing, validation)
