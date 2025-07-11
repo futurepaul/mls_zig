@@ -28,6 +28,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Add hpke dependency
+    const hpke_dep = b.dependency("hpke", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    // Try to get the artifact instead of module
+    const hpke_lib = hpke_dep.artifact("hpke");
+    
+    // Add hpke to the library module - use the root source file
+    lib_mod.addImport("hpke", hpke_lib.root_module);
+
     // We will also create a module for our other entry point, 'main.zig'.
     const exe_mod = b.createModule(.{
         // `root_source_file` is the Zig "entry point" of the module. If a module
@@ -43,6 +55,7 @@ pub fn build(b: *std.Build) void {
     // This is what allows Zig source code to use `@import("foo")` where 'foo' is not a
     // file path. In this case, we set up `exe_mod` to import `lib_mod`.
     exe_mod.addImport("mls_zig_lib", lib_mod);
+    exe_mod.addImport("hpke", hpke_lib.root_module);
 
     // Now, we will create a static library based on the module we created above.
     // This creates a `std.Build.Step.Compile`, which is the build step responsible

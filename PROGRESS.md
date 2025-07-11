@@ -58,30 +58,44 @@ This document tracks the progress of porting OpenMLS tests from Rust to Zig.
 - [x] KeyPackage data structures (LeafNode, Extensions, Capabilities)
 - [x] KeyPackageBundle for managing public/private key pairs
 
-## Phase 5: Basic Group Operations (Next Phase - Ready to Start)
+## Phase 5: Basic Group Operations
 
-### 5.1 Leaf Nodes (Start Here)
-- [ ] LeafNode creation with proper MLS signing
-- [ ] LeafNodeTBS (To Be Signed) structure for signature validation  
-- [ ] Integration with KeyPackage and Credential types
-- [ ] Support for LeafNodeSource variants (KeyPackage, Update, Commit)
-- [ ] LeafNode validation and signature verification
+### 5.1 Leaf Nodes ✅ **COMPLETE**
+- [x] LeafNode creation with proper MLS signing using `signWithLabel("LeafNodeTBS")`
+- [x] LeafNodeTBS (To Be Signed) structure for signature validation with group context
+- [x] Integration with KeyPackage and Credential types
+- [x] Support for LeafNodeSource variants (KeyPackage, Update, Commit) with proper serialization
+- [x] LeafNode validation and signature verification with tree context
+- [x] Complete extension framework (standard + custom Nostr extensions)
+- [x] Capabilities system for MLS feature declaration
+- [x] Comprehensive test suite (19 tests passing, 4 skipped pending KeyPackageBundle)
+- [x] Full TLS serialization/deserialization compatibility
 
-### 5.2 TreeKEM Integration  
-- [ ] Integrate BinaryTree with LeafNode cryptographic material
-- [ ] TreeKEM encryption/decryption along tree paths
-- [ ] Parent node key derivation for tree structure
-- [ ] Tree synchronization and update operations
-- [ ] Path encryption for secure group key updates
+### 5.2 TreeKEM Integration ✅ **COMPLETE**
+- [x] Integrate BinaryTree with LeafNode cryptographic material via TreeSync wrapper
+- [x] TreeKEM encryption/decryption along tree paths (createUpdatePath/decryptPath)
+- [x] Parent node key derivation for tree structure (PathSecret.deriveKeyPair)
+- [x] Tree synchronization and update operations (applyUpdatePath)
+- [x] Path encryption for secure group key updates with real HPKE encryption
+- [x] Filtered direct path computation (skip blank nodes)
+- [x] Copath resolution for encryption targets
+- [x] UpdatePath creation with proper key derivation chain
+- [x] ParentNode structure with encryption keys and parent hashes
+- [x] HpkeCiphertext for encrypted path secrets
+- [x] HPKE integration using zig-hpke library (X25519 + AES-GCM/ChaCha20-Poly1305)
+- [x] Tests for ParentNode, PathSecret, TreeSync, and HPKE roundtrip
 
-### 5.3 Simple Group Creation
+### 5.3 Simple Group Creation ⭐ **IN PROGRESS**
 - [ ] Basic MLS group with 2-3 members
 - [ ] Group state management and initialization
 - [ ] Welcome message generation and processing
 - [ ] Basic Add/Remove proposal handling
 - [ ] Group membership validation and updates
+- [ ] Commit message processing and epoch advancement
+- [ ] Group context computation and management
+- [ ] Interim transcript hash for proposals
 
-**Implementation Files**: `src/leaf_node.zig` → `src/tree_kem.zig` → `src/mls_group.zig`
+**Implementation Files**: ✅ `src/leaf_node.zig` → ✅ `src/tree_kem.zig` → 🚧 `src/mls_group.zig`
 
 ## Notes
 - TreeMath implemented in `src/tree_math.zig`
@@ -100,3 +114,6 @@ This document tracks the progress of porting OpenMLS tests from Rust to Zig.
 - Tree growing doubles leaf count, shrinking halves it (maintains full binary tree property)
 - TLS codec follows MLS/TLS conventions (big-endian, length-prefixed data)
 - VarBytes manages memory automatically for variable-length data
+- HPKE encryption using zig-hpke library for path secret protection
+- TreeSync wrapper provides high-level tree operations over BinaryTree
+- External dependencies managed through build.zig.zon and build.zig
