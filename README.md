@@ -18,7 +18,6 @@ Despite the vibes-based development approach, this has somehow evolved into what
 - **Group Management** - Can create groups, add people, remove people, advance epochs
 - **NIP-EE Extensions** - Custom stuff for Nostr that might work
 - **HKDF Support** - Complete HKDF-Extract/Expand for NIP-44 vibes
-- **HMAC Support** - Message authentication for Nostr events and relays
 - **Memory Probably Safe** - Allocators everywhere, tests don't crash
 - **Type Safe** - Zig's compiler made us do it right
 
@@ -155,18 +154,6 @@ defer prk.deinit();
 
 var nip44_key = try cipher_suite.hkdfExpand(allocator, prk.asSlice(), "nip44-v2", 32);
 defer nip44_key.deinit();
-```
-
-#### HMAC for Message Authentication
-```zig
-// HMAC for Nostr event authentication and integrity
-var auth_tag = try cipher_suite.hmac(allocator, secret_key, nostr_event);
-defer auth_tag.deinit();
-
-// Verify message integrity
-var verification_tag = try cipher_suite.hmac(allocator, secret_key, received_message);
-defer verification_tag.deinit();
-const is_valid = auth_tag.eql(verification_tag);
 ```
 
 #### Nostr Extensions
@@ -312,7 +299,6 @@ zig test src/nostr_extensions.zig # 35 tests - Nostr things
 # Try examples
 zig build example                 # NIP-EE vibes functionality
 zig build example-nip44          # NIP-44 HKDF vibes
-zig build example-hmac           # HMAC authentication vibes
 
 # OpenMLS compatibility validation  
 zig build test-vectors            # Full test suite (scary)
