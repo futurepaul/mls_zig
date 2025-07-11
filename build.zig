@@ -120,10 +120,26 @@ pub fn build(b: *std.Build) void {
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
+    // Test vectors test step
+    const test_vectors_tests = b.addTest(.{
+        .root_source_file = b.path("src/test_vectors.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    // Add the library module to test vectors so it can access our implementation
+    test_vectors_tests.root_module.addImport("mls_zig_lib", lib_mod);
+    test_vectors_tests.root_module.addImport("hpke", hpke_lib.root_module);
+    
+    const run_test_vectors = b.addRunArtifact(test_vectors_tests);
+    
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_exe_unit_tests.step);
+    
+    const test_vectors_step = b.step("test-vectors", "Run OpenMLS test vectors");
+    test_vectors_step.dependOn(&run_test_vectors.step);
 }

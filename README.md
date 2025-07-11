@@ -100,13 +100,25 @@ The implementation is organized into focused modules:
 
 ### Testing
 
-Lots of tests that seem to work:
+Lots of tests that seem to work, including **industry-standard OpenMLS test vectors**:
 
 ```bash
 zig test src/key_package.zig     # 31 tests - Keys and signing
 zig test src/cipher_suite.zig    # 16 tests - Crypto stuff  
 zig test src/nostr_extensions.zig # 35 tests - Nostr things
+zig build test-vectors           # OpenMLS compatibility validation
 ```
+
+### Test Vector Validation
+
+The implementation passes some OpenMLS test vectors:
+
+- **Crypto-Basics**: `derive_secret`, `expand_with_label` passing for 3 cipher suites
+- **Tree-Math**: All 10 test cases pass (1-1023 nodes)  
+- **TreeKEM**: Framework ready for validation
+- **Key-Schedule**: Framework ready for validation
+
+Test vectors are copied from the OpenMLS repository for compatibility testing.
 
 ### Security (Maybe?)
 
