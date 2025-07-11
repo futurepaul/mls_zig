@@ -70,11 +70,19 @@ pub fn build(b: *std.Build) void {
     // location when the user invokes the "install" step (the default step when
     // running `zig build`).
     b.installArtifact(lib);
+    
+    // Expose the library module for external projects to import
+    const mls_zig_mod = b.addModule("mls_zig", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    mls_zig_mod.addImport("hpke", hpke_lib.root_module);
 
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
     const exe = b.addExecutable(.{
-        .name = "mls_zig",
+        .name = "mls_zig_demo",
         .root_module = exe_mod,
     });
 

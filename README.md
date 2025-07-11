@@ -30,10 +30,21 @@ Add to your `build.zig.zon`:
 ```zig
 .dependencies = .{
     .mls_zig = .{
-        .url = "https://github.com/your-org/mls_zig/archive/main.tar.gz",
+        .url = "https://github.com/futurepaul/mls_zig/archive/main.tar.gz",
         .hash = "...", // zig will provide this
     },
 },
+```
+
+Add to your `build.zig`:
+
+```zig
+const mls_dep = b.dependency("mls_zig", .{
+    .target = target,
+    .optimize = optimize,
+});
+
+exe.root_module.addImport("mls_zig", mls_dep.module("mls_zig"));
 ```
 
 ### 2. NIP-EE Integration (Maybe Works?)
