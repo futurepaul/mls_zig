@@ -142,4 +142,37 @@ pub fn build(b: *std.Build) void {
     
     const test_vectors_step = b.step("test-vectors", "Run OpenMLS test vectors");
     test_vectors_step.dependOn(&run_test_vectors.step);
+    
+    // Example for NIP-EE core functionality (working today)
+    const nip_ee_core_example = b.addExecutable(.{
+        .name = "nip_ee_core",
+        .root_source_file = b.path("examples/nip_ee_core.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    // Add the library module to examples
+    nip_ee_core_example.root_module.addImport("mls_zig", lib_mod);
+    nip_ee_core_example.root_module.addImport("hpke", hpke_lib.root_module);
+    
+    const run_nip_ee_core_example = b.addRunArtifact(nip_ee_core_example);
+    
+    // Example for NIP-44 HKDF functionality
+    const nip44_hkdf_example = b.addExecutable(.{
+        .name = "nip44_hkdf",
+        .root_source_file = b.path("examples/nip44_hkdf.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    nip44_hkdf_example.root_module.addImport("mls_zig", lib_mod);
+    nip44_hkdf_example.root_module.addImport("hpke", hpke_lib.root_module);
+    
+    const run_nip44_hkdf_example = b.addRunArtifact(nip44_hkdf_example);
+    
+    const example_step = b.step("example", "Run NIP-EE core example");
+    example_step.dependOn(&run_nip_ee_core_example.step);
+    
+    const nip44_step = b.step("example-nip44", "Run NIP-44 HKDF example");
+    nip44_step.dependOn(&run_nip44_hkdf_example.step);
 }

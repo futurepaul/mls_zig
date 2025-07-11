@@ -104,6 +104,7 @@ var compatible_secret = try cipher_suite.deriveSecret(
 
 **Our Implementation**:
 - Updated to match OpenMLS two-step process
+- Improved binary label handling in `hkdfExpandLabel` (2025-01-11)
 - Currently produces result: `893c4f17df05f4fd3ca4938b751688f80dd73230e76aafcbdd3d4948f14a79d8`
 - Still differs from expected: `dbce4e25e59ab4dfa6f6200f113ed08393cf6e7286d024811141c6a4dd11c0cb`
 
@@ -113,8 +114,11 @@ var compatible_secret = try cipher_suite.deriveSecret(
 - [x] Test cases created for validation
 - [x] OpenMLS source code analysis completed
 - [x] Two-step derivation pattern implemented
-- [ ] Test vector label format resolution
+- [x] Binary label handling improved (2025-01-11)
+- [ ] Test vector label format resolution (deeper OpenMLS analysis needed)
 - [ ] Full compatibility verification
+
+**Note**: This incompatibility does **not block NIP-EE** since NIP-EE exporter secrets work correctly for Nostr key derivation.
 
 ---
 

@@ -516,6 +516,35 @@ pub const MlsGroup = struct {
     pub fn groupId(self: MlsGroup) []const u8 {
         return self.group_context.group_id.asSlice();
     }
+    
+    /// Get the current group's exporter secret for key derivation
+    /// Returns null if the group hasn't been initialized with epoch secrets yet
+    pub fn getExporterSecret(self: MlsGroup) ?[]const u8 {
+        if (self.epoch_secrets) |secrets| {
+            return secrets.exporter_secret.asSlice();
+        }
+        return null;
+    }
+    
+    /// Derive a NIP-44 key from the group's exporter secret
+    /// This is the main function used for NIP-EE integration
+    pub fn deriveNipeeKey(
+        self: MlsGroup,
+        allocator: Allocator,
+        context: []const u8,
+        length: u16,
+    ) !?Secret {
+        if (self.getExporterSecret()) |exporter_secret| {
+            return self.cipher_suite.exporterSecret(
+                allocator,
+                exporter_secret,
+                "nostr",
+                context,
+                length
+            );
+        }
+        return null;
+    }
 };
 
 /// Epoch secrets derived from commit secret

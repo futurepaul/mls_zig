@@ -334,8 +334,14 @@ pub const CipherSuite = enum(u16) {
         var tls_writer = tls_codec.TlsWriter(@TypeOf(info_list.writer())).init(info_list.writer());
         try tls_writer.writeU16(length);
         
-        const full_label = try std.fmt.allocPrint(allocator, "{s}{s}", .{ MLS_LABEL_PREFIX, label });
+        // Create full label by concatenating MLS prefix as bytes + label bytes
+        // This handles binary labels correctly (like from OpenMLS test vectors)
+        const prefix_bytes = MLS_LABEL_PREFIX[0..];
+        const full_label = try allocator.alloc(u8, prefix_bytes.len + label.len);
         defer allocator.free(full_label);
+        
+        @memcpy(full_label[0..prefix_bytes.len], prefix_bytes);
+        @memcpy(full_label[prefix_bytes.len..], label);
         
         try tls_writer.writeVarBytes(u8, full_label);
         try tls_writer.writeVarBytes(u8, context);
