@@ -77,6 +77,44 @@ pub const Secret = struct {
         };
     }
 
+    /// Compute HMAC (Hash-based Message Authentication Code)
+    /// Useful for Nostr authentication and message integrity
+    pub fn hmac(
+        self: CipherSuite,
+        allocator: Allocator,
+        key: []const u8,
+        message: []const u8,
+    ) !Secret {
+        const hash_len = self.hashLength();
+        const output_data = try allocator.alloc(u8, hash_len);
+        
+        switch (self.hashType()) {
+            .SHA256 => {
+                const HmacSha256 = crypto.auth.hmac.Hmac(crypto.hash.sha2.Sha256);
+                var result: [32]u8 = undefined;
+                HmacSha256.create(&result, message, key);
+                @memcpy(output_data, &result);
+            },
+            .SHA384 => {
+                const HmacSha384 = crypto.auth.hmac.Hmac(crypto.hash.sha2.Sha384);
+                var result: [48]u8 = undefined;
+                HmacSha384.create(&result, message, key);
+                @memcpy(output_data, &result);
+            },
+            .SHA512 => {
+                const HmacSha512 = crypto.auth.hmac.Hmac(crypto.hash.sha2.Sha512);
+                var result: [64]u8 = undefined;
+                HmacSha512.create(&result, message, key);
+                @memcpy(output_data, &result);
+            },
+        }
+        
+        return Secret{
+            .data = output_data,
+            .allocator = allocator,
+        };
+    }
+
     pub fn format(
         self: Secret,
         comptime fmt: []const u8,
@@ -399,6 +437,44 @@ pub const CipherSuite = enum(u16) {
         
         // Step 2: kdf_expand_label(result, "exported", Hash(context), length) 
         return self.hkdfExpandLabel(allocator, intermediate_secret.asSlice(), "exported", context_hash, length);
+    }
+
+    /// Compute HMAC (Hash-based Message Authentication Code)
+    /// Useful for Nostr authentication and message integrity
+    pub fn hmac(
+        self: CipherSuite,
+        allocator: Allocator,
+        key: []const u8,
+        message: []const u8,
+    ) !Secret {
+        const hash_len = self.hashLength();
+        const output_data = try allocator.alloc(u8, hash_len);
+        
+        switch (self.hashType()) {
+            .SHA256 => {
+                const HmacSha256 = crypto.auth.hmac.Hmac(crypto.hash.sha2.Sha256);
+                var result: [32]u8 = undefined;
+                HmacSha256.create(&result, message, key);
+                @memcpy(output_data, &result);
+            },
+            .SHA384 => {
+                const HmacSha384 = crypto.auth.hmac.Hmac(crypto.hash.sha2.Sha384);
+                var result: [48]u8 = undefined;
+                HmacSha384.create(&result, message, key);
+                @memcpy(output_data, &result);
+            },
+            .SHA512 => {
+                const HmacSha512 = crypto.auth.hmac.Hmac(crypto.hash.sha2.Sha512);
+                var result: [64]u8 = undefined;
+                HmacSha512.create(&result, message, key);
+                @memcpy(output_data, &result);
+            },
+        }
+        
+        return Secret{
+            .data = output_data,
+            .allocator = allocator,
+        };
     }
 };
 
@@ -802,5 +878,44 @@ test "exporter secret with multiple cipher suites" {
         
         // Verify that different cipher suites produce different outputs
         // (This is expected due to different hash functions)
+    }
+}
+
+test "HMAC computation" {
+    const allocator = testing.allocator;
+    const cs = CipherSuite.MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+    
+    const key = "secret_key";
+    const message = "Hello, Nostr!";
+    
+    var hmac_result = try cs.hmac(allocator, key, message);
+    defer hmac_result.deinit();
+    
+    try testing.expect(hmac_result.len() == 32); // SHA256 output
+    
+    // Test that same inputs produce same output
+    var hmac_result2 = try cs.hmac(allocator, key, message);
+    defer hmac_result2.deinit();
+    
+    try testing.expect(hmac_result.eql(hmac_result2));
+}
+
+test "HMAC with different cipher suites" {
+    const allocator = testing.allocator;
+    
+    const test_cases = [_]struct { cs: CipherSuite, expected_len: usize }{
+        .{ .cs = .MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, .expected_len = 32 },
+        .{ .cs = .MLS_256_DHKEMP384_AES256GCM_SHA384_P384, .expected_len = 48 },
+        .{ .cs = .MLS_256_DHKEMX448_AES256GCM_SHA512_Ed448, .expected_len = 64 },
+    };
+    
+    const key = "nostr_hmac_key";
+    const message = "authenticate this message";
+    
+    for (test_cases) |test_case| {
+        var hmac_result = try test_case.cs.hmac(allocator, key, message);
+        defer hmac_result.deinit();
+        
+        try testing.expect(hmac_result.len() == test_case.expected_len);
     }
 }

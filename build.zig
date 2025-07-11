@@ -183,4 +183,20 @@ pub fn build(b: *std.Build) void {
     
     const nip44_step = b.step("example-nip44", "Run NIP-44 HKDF example");
     nip44_step.dependOn(&run_nip44_hkdf_example.step);
+    
+    // Example for Nostr HMAC functionality
+    const nostr_hmac_example = b.addExecutable(.{
+        .name = "nostr_hmac",
+        .root_source_file = b.path("examples/nostr_hmac.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    nostr_hmac_example.root_module.addImport("mls_zig", lib_mod);
+    nostr_hmac_example.root_module.addImport("hpke", hpke_lib.root_module);
+    
+    const run_nostr_hmac_example = b.addRunArtifact(nostr_hmac_example);
+    
+    const hmac_step = b.step("example-hmac", "Run Nostr HMAC example");
+    hmac_step.dependOn(&run_nostr_hmac_example.step);
 }
