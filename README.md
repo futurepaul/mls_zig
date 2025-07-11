@@ -1,32 +1,25 @@
-# MLS-Zig: Production-Ready MLS Implementation for NIP-EE
+# mls_zig
 
-A complete Messaging Layer Security (MLS) implementation in Zig, optimized for Nostr Event Encryption (NIP-EE) integration.
+THIS IS ALL VIBES, NOT ACTUAL CRYPTOGRAPHY. I AM A FRONTEND DEVELOPER. DO NOT USE THIS FOR ANYTHING SERIOUS.
 
-## Overview
+The plan is to vibe it until it works, then read the code and see if the tests are real. The tests are all modeled on / stolen from [OpenMLS](https://github.com/openmls/openmls/).
 
-MLS-Zig provides all the cryptographic primitives and group management functionality needed to implement NIP-EE (Nostr Event Encryption) in Zig applications. This library handles the complex MLS protocol implementation so you can focus on building secure Nostr group messaging.
+Use OpenMLS if you want cryptography. Use mls_zig if you want vibes.
 
-## Features
+## What This Actually Is
 
-### ✅ Complete MLS RFC 9420 Implementation
+Despite the vibes-based development approach, this has somehow evolved into what looks like a complete MLS implementation that might even work for NIP-EE integration. It has all the parts you'd expect and the tests seem to pass, but we haven't actually used it for anything real yet. The tests are modeled on OpenMLS so they might even be correct!
+
+### What We Think We Built
+
+- **MLS Protocol** - Claims to follow RFC 9420, tests suggest it might be true
 - **8 Cipher Suites** - Ed25519, P-256, X25519, ChaCha20-Poly1305, AES-GCM variants  
-- **TreeKEM** - Efficient key management for large groups with forward secrecy
-- **Group Operations** - Create groups, add/remove members, advance epochs
-- **Key Derivation** - Secure exporter secrets for NIP-44 encryption integration
-- **Wire Format** - TLS 1.3 compatible serialization for interoperability
-
-### ✅ NIP-EE Ready
-- **Exporter Secrets** - Derive NIP-44 encryption keys from MLS group secrets
-- **HKDF Support** - Complete HKDF-Extract/Expand for NIP-44 key derivation
-- **Nostr Extensions** - Group metadata and identity linking
-- **Key Package Security** - Prevents reuse attacks with `last_resort` extension
-- **Group Synchronization** - Ratchet tree for efficient member management
-
-### ✅ Production Quality
-- **Memory Safe** - Zero leaks, proper RAII with Zig allocators
-- **Type Safe** - Strong typing prevents common MLS implementation errors  
-- **Test Coverage** - 90+ tests plus OpenMLS compatibility validation
-- **Error Handling** - Comprehensive error types for robust applications
+- **TreeKEM** - Seems to do the tree crypto thing with actual HPKE
+- **Group Management** - Can create groups, add people, remove people, advance epochs
+- **NIP-EE Extensions** - Custom stuff for Nostr that might work
+- **HKDF Support** - Complete HKDF-Extract/Expand for NIP-44 vibes
+- **Memory Probably Safe** - Allocators everywhere, tests don't crash
+- **Type Safe** - Zig's compiler made us do it right
 
 ## Quick Start
 
@@ -43,7 +36,7 @@ Add to your `build.zig.zon`:
 },
 ```
 
-### 2. Core NIP-EE Integration (Ready Today)
+### 2. NIP-EE Integration (Maybe Works?)
 
 ```zig
 const std = @import("std");
@@ -82,12 +75,12 @@ pub fn main() !void {
         "{\"name\":\"My Group\"}" // group metadata JSON
     );
 
-    // Ready for integration with nostr_zig!
+    // Ready for integration with nostr_zig! (probably)
     std.log.info("NIP-44 key: {x}", .{nip44_key.asSlice()});
 }
 ```
 
-**Try it**: `zig build example`
+**Try it**: `zig build example` (fingers crossed)
 
 ## API Reference
 
@@ -280,27 +273,25 @@ const NipEEGroup = struct {
 };
 ```
 
-## Testing
+### Testing
 
-Run the test suite to verify functionality:
+Lots of tests that seem to work:
 
 ```bash
-# Run all unit tests
-zig test src/root.zig
+zig build              # Builds, hopefully
+zig test src/root.zig  # Run tests, pray they pass
 
 # Test specific modules
-zig test src/cipher_suite.zig     # Crypto primitives (✅ 16 tests pass)
-zig test src/nostr_extensions.zig # NIP-EE extensions (✅ 35 tests pass)
+zig test src/cipher_suite.zig     # 16 tests - Crypto stuff  
+zig test src/nostr_extensions.zig # 35 tests - Nostr things
 
 # Try examples
-zig build example                 # NIP-EE core functionality
-zig build example-nip44          # NIP-44 HKDF key derivation
+zig build example                 # NIP-EE vibes functionality
+zig build example-nip44          # NIP-44 HKDF vibes
 
 # OpenMLS compatibility validation  
-zig build test-vectors            # Full test suite
+zig build test-vectors            # Full test suite (scary)
 ```
-
-**Note**: Some integration tests may fail due to API inconsistencies being resolved. The core cryptographic functionality (cipher_suite, nostr_extensions) is production-ready.
 
 ## Build Configuration
 
@@ -315,20 +306,31 @@ const mls_dep = b.dependency("mls_zig", .{
 exe.root_module.addImport("mls_zig", mls_dep.module("mls_zig"));
 ```
 
-## Dependencies
+### Dependencies
 
-- **Zig 0.14.1** - Language and standard library
-- **zig-hpke** - HPKE implementation for TreeKEM operations
+- **Zig 0.14.1** - Works on my machine
+- **zig-hpke** - Someone else's crypto that seems legit
 
-Both dependencies are automatically managed through the Zig package manager.
+### Security (Maybe?)
 
-## Security Considerations
+- **Real Cryptography** - We're using actual crypto libraries, not just `return 42`
+- **Memory Safety** - Zig makes it hard to mess up, tests don't crash
+- **Forward Secrecy** - TreeKEM says it does this, we believe it
+- **RFC Compliance** - We read the RFC and tried our best
 
-- **Key Management**: Use proper key storage and destruction patterns
-- **Memory Safety**: Always call `deinit()` on secrets to clear memory  
-- **Epoch Management**: Advance epochs regularly for forward secrecy
-- **Extension Validation**: Validate all Nostr extension data before use
-- **Relay Security**: Use authenticated relay connections when possible
+### Should You Use This?
+
+Maybe for:
+- Experimenting with MLS in Zig
+- Learning how the protocol works
+- Building a Nostr group chat prototype
+- Having fun with cryptography (safely)
+
+Probably not for:
+- Anything important
+- Production systems
+- Protecting actual secrets
+- Your cryptocurrency wallet
 
 ## License
 
@@ -338,6 +340,4 @@ MIT License - see LICENSE file for details.
 
 See DEVELOPMENT.md for implementation details and contribution guidelines.
 
----
-
-**Note**: This is a production-ready implementation with comprehensive test coverage. However, as with all cryptographic software, security audits are recommended for high-security applications.
+The vibes were strong, and somehow we ended up with what looks like real cryptography. But remember: THIS IS ALL VIBES! 🎉
