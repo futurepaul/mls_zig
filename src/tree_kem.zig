@@ -326,10 +326,14 @@ pub const HpkeCiphertext = struct {
     }
 
     pub fn deserialize(allocator: Allocator, reader: anytype) !HpkeCiphertext {
-        const kem_output = try VarBytes.deserialize(allocator, reader);
+        const kem_output_data = try reader.readVarBytes(u16, allocator);
+        defer allocator.free(kem_output_data);
+        var kem_output = try VarBytes.init(allocator, kem_output_data);
         errdefer kem_output.deinit();
 
-        const ciphertext = try VarBytes.deserialize(allocator, reader);
+        const ciphertext_data = try reader.readVarBytes(u16, allocator);
+        defer allocator.free(ciphertext_data);
+        const ciphertext = try VarBytes.init(allocator, ciphertext_data);
 
         return HpkeCiphertext{
             .kem_output = kem_output,
@@ -448,7 +452,7 @@ pub const UpdatePath = struct {
     }
 
     pub fn deinit(self: *UpdatePath, allocator: Allocator) void {
-        self.leaf_node.deinit();
+        self.leaf_node.deinit(allocator);
         for (self.nodes) |*node| {
             node.deinit(allocator);
         }
@@ -465,8 +469,8 @@ pub const UpdatePath = struct {
     }
 
     pub fn deserialize(allocator: Allocator, reader: anytype) !UpdatePath {
-        const leaf = try LeafNode.deserialize(allocator, reader);
-        errdefer leaf.deinit();
+        var leaf = try LeafNode.deserialize(allocator, reader);
+        errdefer leaf.deinit(allocator);
 
         const num_nodes = try reader.readU32();
         const nodes = try allocator.alloc(UpdatePathNode, num_nodes);

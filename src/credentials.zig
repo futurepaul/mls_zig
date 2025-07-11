@@ -13,11 +13,11 @@ pub const CredentialType = enum(u16) {
     x509 = 2,
     
     /// Convert from u16
-    pub fn fromU16(value: u16) CredentialType {
+    pub fn fromU16(value: u16) !CredentialType {
         return switch (value) {
             1 => .basic,
             2 => .x509,
-            else => unreachable, // For now, we only support known types
+            else => error.UnsupportedCredentialType,
         };
     }
     
@@ -41,7 +41,7 @@ pub const CredentialType = enum(u16) {
     pub fn tlsDeserialize(reader: anytype, allocator: std.mem.Allocator) !CredentialType {
         _ = allocator;
         const value = try reader.readU16();
-        return CredentialType.fromU16(value);
+        return try CredentialType.fromU16(value);
     }
 };
 

@@ -175,15 +175,15 @@ This document tracks the progress of porting OpenMLS tests from Rust to Zig.
 **Test Vector Implementation**: `src/test_vectors.zig` with framework for validating compatibility
 
 **Currently Passing**:
-- crypto-basics.json: `derive_secret`, `expand_with_label` for 3 cipher suites
-- tree-math.json: All 10 tree structure test cases (1-1023 nodes)
+- crypto-basics.json: ✅ `derive_secret`, `expand_with_label` for 7 cipher suites (all supported MLS cipher suites)
+- tree-math.json: ✅ All 10 tree structure test cases (1-1023 nodes)
 
-**Framework Ready**:
-- treekem.json: TreeKEM operations test structure in place
-- key-schedule.json: Key derivation test structure in place  
-- message-protection.json: Message encryption test structure in place
-- welcome.json: Welcome message test structure in place
-- messages.json: MLS message format test structure in place
-- secret-tree.json: Secret tree test structure in place
+**Framework Ready (TODO: Actual Implementation Testing)**:
+- treekem.json: 🚧 TreeKEM operations test parsing (need to test actual TreeKEM functions)
+- key-schedule.json: 🚧 Key derivation schedule parsing (need to test actual key derivation)
+- message-protection.json: 🚧 Message encryption/decryption test parsing (need to test actual encrypt/decrypt)
+- welcome.json: 🚧 Welcome message processing test parsing (need to test actual welcome processing)
+- messages.json: 🚧 MLS message format test parsing (need to test actual message processing)
+- secret-tree.json: 🚧 Secret tree operations test parsing (need to test actual secret tree ops)
 
 **Build Integration**: `zig build test-vectors` runs all OpenMLS compatibility tests

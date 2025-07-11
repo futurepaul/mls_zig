@@ -435,7 +435,7 @@ pub const LeafNodePayload = struct {
         const sig_key_bytes = try reader.readVarBytes(u16, allocator);
         defer allocator.free(sig_key_bytes);
         const signature_key = try VarBytes.init(allocator, sig_key_bytes);
-        const credential = try Credential.deserialize(allocator, reader);
+        const credential = try Credential.tlsDeserialize(reader, allocator);
         const capabilities = try Capabilities.deserialize(allocator, reader);
         const leaf_node_source = try LeafNodeSource.deserialize(reader);
         const extensions = try Extensions.deserialize(allocator, reader);
