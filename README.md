@@ -8,17 +8,17 @@ Use OpenMLS if you want cryptography. Use mls_zig if you want vibes.
 
 ## What This Actually Is
 
-Despite the vibes-based development approach, this has evolved into a **production-ready MLS implementation** with full NIP-EE compatibility for secure Nostr group messaging. All ~4000+ lines of code have been extensively tested with 82+ comprehensive tests covering every module.
+Despite the vibes-based development approach, this has somehow evolved into what looks like a complete MLS implementation. It has all the parts you'd expect and the tests seem to pass, but we haven't actually used it for anything real yet. The tests are modeled on OpenMLS so they might even be correct!
 
-### Features
+### What We Think We Built
 
-- **Complete MLS Protocol** - RFC 9420 compliant implementation
+- **MLS Protocol** - Claims to follow RFC 9420, tests suggest it might be true
 - **8 Cipher Suites** - Ed25519, P-256, X25519, ChaCha20-Poly1305, AES-GCM variants  
-- **TreeKEM** - Full path encryption/decryption with real HPKE integration
-- **Group Management** - Create, join, add/remove members, epoch advancement
-- **NIP-EE Compatible** - Custom extensions for Nostr Event Encryption
-- **Memory Safe** - Zero leaks, proper RAII patterns throughout
-- **Type Safe** - Strong typing prevents common MLS implementation errors
+- **TreeKEM** - Seems to do the tree crypto thing with actual HPKE
+- **Group Management** - Can create groups, add people, remove people, advance epochs
+- **NIP-EE Extensions** - Custom stuff for Nostr that might work
+- **Memory Probably Safe** - Allocators everywhere, tests don't crash
+- **Type Safe** - Zig's compiler made us do it right
 
 ### Quick Start
 
@@ -74,14 +74,14 @@ try mls.nostr_extensions.addLastResort(&extensions);
 ### Building
 
 ```bash
-zig build        # Build library
-zig test src/root.zig  # Run all tests
+zig build              # Builds, hopefully
+zig test src/root.zig  # Run tests, pray they pass
 ```
 
 ### Dependencies
 
-- **Zig 0.14.1** - Stable and reliable
-- **zig-hpke** - External library for hybrid public key encryption
+- **Zig 0.14.1** - Works on my machine
+- **zig-hpke** - Someone else's crypto that seems legit
 
 ### Architecture
 
@@ -100,27 +100,33 @@ The implementation is organized into focused modules:
 
 ### Testing
 
-Comprehensive test suite with 82+ tests:
+Lots of tests that seem to work:
 
 ```bash
-zig test src/key_package.zig     # 31 tests - Key generation, signing
-zig test src/cipher_suite.zig    # 16 tests - Crypto operations  
-zig test src/nostr_extensions.zig # 35 tests - NIP-EE compatibility
+zig test src/key_package.zig     # 31 tests - Keys and signing
+zig test src/cipher_suite.zig    # 16 tests - Crypto stuff  
+zig test src/nostr_extensions.zig # 35 tests - Nostr things
 ```
 
-### Security
+### Security (Maybe?)
 
-- **Real Cryptography** - No dummy implementations, real HPKE/signatures throughout
-- **Memory Safety** - Proper cleanup, zero memory leaks verified
-- **Forward Secrecy** - TreeKEM provides forward secrecy and post-compromise security
-- **RFC Compliance** - Follows MLS RFC 9420 specification exactly
+- **Real Cryptography** - We're using actual crypto libraries, not just `return 42`
+- **Memory Safety** - Zig makes it hard to mess up, tests don't crash
+- **Forward Secrecy** - TreeKEM says it does this, we believe it
+- **RFC Compliance** - We read the RFC and tried our best
 
-### Use Cases
+### Should You Use This?
 
-Perfect for:
-- Secure group messaging in Nostr applications
-- Any application needing MLS group key management
-- Integration with existing Zig cryptographic applications
-- Learning MLS protocol implementation
+Maybe for:
+- Experimenting with MLS in Zig
+- Learning how the protocol works
+- Building a Nostr group chat prototype
+- Having fun with cryptography (safely)
 
-The vibes were strong, and somehow we ended up with production-grade cryptography. 🎉
+Probably not for:
+- Anything important
+- Production systems
+- Protecting actual secrets
+- Your cryptocurrency wallet
+
+The vibes were strong, and somehow we ended up with what looks like real cryptography. But remember: THIS IS ALL VIBES! 🎉
