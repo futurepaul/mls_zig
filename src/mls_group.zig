@@ -549,14 +549,6 @@ test "MLS group creation" {
     const allocator = testing.allocator;
     const cs = CipherSuite.MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 
-    // Create a key package bundle for testing
-    // Note: This is simplified - real implementation needs proper key generation
-    var key_pair = try @import("key_package.zig").generateSignatureKeyPair(allocator, cs);
-    defer key_pair.deinit();
-
-    var hpke_key_pair = try @import("key_package.zig").generateHpkeKeyPair(allocator, cs);
-    defer hpke_key_pair.deinit();
-
     // Create credential
     var credential = try @import("credentials.zig").BasicCredential.init(
         allocator,
@@ -567,9 +559,21 @@ test "MLS group creation" {
     var cred = try Credential.fromBasic(allocator, &credential);
     defer cred.deinit();
 
-    // Note: KeyPackage and KeyPackageBundle creation is not yet fully implemented
-    // For now, we'll skip the actual group creation test
-    // Test is incomplete due to missing KeyPackageBundle implementation
+    // Create KeyPackageBundle
+    var bundle = try KeyPackageBundle.init(allocator, cs, cred);
+    defer bundle.deinit();
+
+    // Create the group
+    var group = try MlsGroup.createGroup(allocator, cs, bundle);
+    defer group.deinit();
+
+    // Verify group properties
+    try testing.expectEqual(cs, group.cipher_suite);
+    try testing.expectEqual(@as(u64, 0), group.epoch());
+    try testing.expect(group.groupId().len == 32); // Random group ID should be 32 bytes
+
+    // Verify tree state
+    try testing.expectEqual(@as(u32, 1), group.tree.tree.leafCount());
 }
 
 test "Welcome message serialization" {
@@ -613,4 +617,117 @@ test "Group context serialization" {
     defer allocator.free(bytes);
 
     try testing.expect(bytes.len > 0);
+}
+
+test "Complete MLS flow with two members" {
+    const allocator = testing.allocator;
+    const cs = CipherSuite.MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+
+    // Create founder credential and bundle
+    var founder_cred = try @import("credentials.zig").BasicCredential.init(
+        allocator,
+        &[_]u8{0x01} ** 32,
+    );
+    defer founder_cred.deinit();
+
+    var founder_credential = try Credential.fromBasic(allocator, &founder_cred);
+    defer founder_credential.deinit();
+
+    var founder_bundle = try KeyPackageBundle.init(allocator, cs, founder_credential);
+    defer founder_bundle.deinit();
+
+    // Create the group with founder
+    var group = try MlsGroup.createGroup(allocator, cs, founder_bundle);
+    defer group.deinit();
+
+    // Verify initial state
+    try testing.expectEqual(@as(u64, 0), group.epoch());
+    try testing.expectEqual(@as(u32, 1), group.tree.tree.leafCount());
+
+    // Create second member credential and bundle
+    var member_cred = try @import("credentials.zig").BasicCredential.init(
+        allocator,
+        &[_]u8{0x02} ** 32,
+    );
+    defer member_cred.deinit();
+
+    var member_credential = try Credential.fromBasic(allocator, &member_cred);
+    defer member_credential.deinit();
+
+    var member_bundle = try KeyPackageBundle.init(allocator, cs, member_credential);
+    defer member_bundle.deinit();
+
+    // Propose adding the second member
+    try group.proposeAdd(member_bundle.key_package);
+
+    // Verify proposal was added
+    try testing.expectEqual(@as(usize, 1), group.pending_proposals.items.len);
+
+    // Commit the proposal
+    var commit = try group.commit();
+    defer commit.deinit(allocator);
+
+    // Verify state after commit
+    try testing.expectEqual(@as(u64, 1), group.epoch()); // Epoch should advance
+    try testing.expectEqual(@as(usize, 0), group.pending_proposals.items.len); // Proposals cleared
+
+    // Generate welcome message
+    var welcome = try group.generateWelcome();
+    defer welcome.deinit();
+
+    // Verify welcome message
+    try testing.expectEqual(cs, welcome.cipher_suite);
+    try testing.expect(welcome.secrets.asSlice().len > 0);
+    try testing.expect(welcome.encrypted_group_info.asSlice().len > 0);
+}
+
+test "NIP-EE exporter secret integration" {
+    const allocator = testing.allocator;
+    const cs = CipherSuite.MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+
+    // Create a group
+    var founder_cred = try @import("credentials.zig").BasicCredential.init(
+        allocator,
+        &[_]u8{0x01} ** 32,
+    );
+    defer founder_cred.deinit();
+
+    var founder_credential = try Credential.fromBasic(allocator, &founder_cred);
+    defer founder_credential.deinit();
+
+    var founder_bundle = try KeyPackageBundle.init(allocator, cs, founder_credential);
+    defer founder_bundle.deinit();
+
+    var group = try MlsGroup.createGroup(allocator, cs, founder_bundle);
+    defer group.deinit();
+
+    // Test exporter secret derivation for NIP-EE
+    // This would be used to derive keys for NIP-44 encryption
+    const dummy_exporter_secret = [_]u8{0x42} ** 32;
+    const context = "conversation_key_v1";
+    const length = 32;
+
+    var nostr_key = try cs.exporterSecret(
+        allocator,
+        &dummy_exporter_secret,
+        "nostr",
+        context,
+        length
+    );
+    defer nostr_key.deinit();
+
+    // Verify the derived key
+    try testing.expectEqual(@as(usize, length), nostr_key.asSlice().len);
+
+    // Test that different contexts produce different keys
+    var different_key = try cs.exporterSecret(
+        allocator,
+        &dummy_exporter_secret,
+        "nostr",
+        "different_context",
+        length
+    );
+    defer different_key.deinit();
+
+    try testing.expect(!std.mem.eql(u8, nostr_key.asSlice(), different_key.asSlice()));
 }

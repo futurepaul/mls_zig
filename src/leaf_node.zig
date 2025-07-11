@@ -402,7 +402,7 @@ pub const LeafNodePayload = struct {
         return LeafNodePayload{
             .encryption_key = VarBytes.init(allocator, &[_]u8{}) catch unreachable,
             .signature_key = VarBytes.init(allocator, &[_]u8{}) catch unreachable,
-            .credential = Credential.init(allocator),
+            .credential = Credential.init(allocator, .basic, &[_]u8{}) catch unreachable,
             .capabilities = Capabilities.init(allocator),
             .leaf_node_source = LeafNodeSource.Update,
             .extensions = Extensions.init(allocator),
@@ -410,9 +410,10 @@ pub const LeafNodePayload = struct {
     }
 
     pub fn deinit(self: *LeafNodePayload, allocator: Allocator) void {
+        _ = allocator;
         self.encryption_key.deinit();
         self.signature_key.deinit();
-        self.credential.deinit(allocator);
+        self.credential.deinit();
         self.capabilities.deinit();
         self.extensions.deinit();
     }
@@ -420,7 +421,7 @@ pub const LeafNodePayload = struct {
     pub fn serialize(self: LeafNodePayload, writer: anytype) !void {
         try writer.writeVarBytes(u16, self.encryption_key.asSlice());
         try writer.writeVarBytes(u16, self.signature_key.asSlice());
-        try self.credential.serialize(writer);
+        try self.credential.tlsSerialize(writer);
         try self.capabilities.serialize(writer);
         try self.leaf_node_source.serialize(writer);
         try self.extensions.serialize(writer);
@@ -544,7 +545,7 @@ pub const LeafNode = struct {
         allocator: Allocator,
         cs: CipherSuite,
         key_package: KeyPackage,
-        signature_private_key: Secret,
+        signature_private_key: @import("key_package.zig").SignaturePrivateKey,
     ) !LeafNode {
         var payload = LeafNodePayload.init(allocator);
         
@@ -578,14 +579,14 @@ pub const LeafNode = struct {
         const tbs_bytes = try tbs.unsignedPayload(allocator);
         defer allocator.free(tbs_bytes);
         
-        const signature_bytes = try cs.signWithLabel(
+        const signature_bytes = try @import("key_package.zig").signWithLabel(
             allocator,
-            signature_private_key,
+            cs,
+            signature_private_key.asSlice(),
             "LeafNodeTBS",
-            &[_][]const u8{},
             tbs_bytes,
         );
-        defer signature_bytes.deinit(allocator);
+        defer signature_bytes.deinit();
 
         const signature = try VarBytes.init(allocator, signature_bytes.asSlice());
 

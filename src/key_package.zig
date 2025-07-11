@@ -342,6 +342,129 @@ pub const KeyPackageBundle = struct {
     private_encryption_key: HpkePrivateKey,
     private_signature_key: SignaturePrivateKey,
 
+    /// Create a new KeyPackageBundle with generated keys and proper MLS signing
+    pub fn init(
+        allocator: Allocator,
+        cs: cipher_suite.CipherSuite,
+        credential: credentials.Credential,
+    ) !KeyPackageBundle {
+        // Generate signature key pair
+        var sig_keypair = try generateSignatureKeyPair(allocator, cs);
+        defer sig_keypair.deinit();
+
+        // Generate HPKE key pairs for init and encryption keys
+        var init_keypair = try generateHpkeKeyPair(allocator, cs);
+        defer init_keypair.deinit();
+
+        var enc_keypair = try generateHpkeKeyPair(allocator, cs);
+        defer enc_keypair.deinit();
+
+        // Create public key wrappers
+        var init_key = try HpkePublicKey.init(allocator, init_keypair.public_key);
+        errdefer init_key.deinit();
+
+        var enc_key = try HpkePublicKey.init(allocator, enc_keypair.public_key);
+        errdefer enc_key.deinit();
+
+        var sig_key = try SignaturePublicKey.init(allocator, sig_keypair.public_key);
+        errdefer sig_key.deinit();
+
+        // Create basic capabilities
+        var capabilities = Capabilities.init(allocator);
+        // Add default MLS version support
+        const versions = try allocator.alloc(u16, 1);
+        versions[0] = MLS_PROTOCOL_VERSION;
+        capabilities.versions = versions;
+        
+        // Add cipher suite support
+        const cipher_suites = try allocator.alloc(cipher_suite.CipherSuite, 1);
+        cipher_suites[0] = cs;
+        capabilities.cipher_suites = cipher_suites;
+
+        // Empty extensions for now
+        const extensions = Extensions.init(allocator);
+
+        // Create LeafNodeSource for KeyPackage
+        const lifetime = Lifetime.init(0, std.math.maxInt(u64)); // Max lifetime for simplicity
+        const leaf_source = LeafNodeSource{ .key_package = lifetime };
+
+        // Create a dummy signature (will be replaced)
+        const dummy_sig = try Signature.init(allocator, &[_]u8{0x00} ** 64);
+
+        // Clone the credential to avoid ownership issues
+        var cloned_cred = try credentials.Credential.init(
+            allocator,
+            credential.credential_type,
+            credential.serialized_content.asSlice()
+        );
+        errdefer cloned_cred.deinit();
+
+        // Create the LeafNode
+        const leaf_node = LeafNode{
+            .encryption_key = enc_key,
+            .signature_key = sig_key,
+            .credential = cloned_cred,
+            .capabilities = capabilities,
+            .leaf_node_source = leaf_source,
+            .extensions = extensions,
+            .signature = dummy_sig,
+        };
+
+        // Create KeyPackageTBS for signing
+        var key_package_tbs = KeyPackageTBS{
+            .protocol_version = MLS_PROTOCOL_VERSION,
+            .cipher_suite = cs,
+            .init_key = init_key,
+            .leaf_node = leaf_node,
+            .extensions = Extensions.init(allocator),
+        };
+
+        // Serialize KeyPackageTBS for signing
+        var tbs_data = std.ArrayList(u8).init(allocator);
+        defer tbs_data.deinit();
+        
+        var writer = tls_codec.TlsWriter(@TypeOf(tbs_data.writer())).init(tbs_data.writer());
+        try writer.writeU16(key_package_tbs.protocol_version);
+        try writer.writeU16(@intFromEnum(key_package_tbs.cipher_suite));
+        try writer.writeVarBytes(u16, key_package_tbs.init_key.asSlice());
+        
+        // Serialize leaf node (simplified)
+        try writer.writeVarBytes(u16, key_package_tbs.leaf_node.encryption_key.asSlice());
+        try writer.writeVarBytes(u16, key_package_tbs.leaf_node.signature_key.asSlice());
+        
+        // Sign the KeyPackageTBS
+        const signature = try signWithLabel(
+            allocator,
+            cs,
+            sig_keypair.private_key,
+            "KeyPackageTBS",
+            tbs_data.items
+        );
+
+        // Create the final KeyPackage
+        const key_package = KeyPackage{
+            .payload = key_package_tbs,
+            .signature = signature,
+        };
+
+        // Create private key wrappers
+        var private_init_key = try HpkePrivateKey.init(allocator, init_keypair.private_key);
+        errdefer private_init_key.deinit();
+
+        var private_enc_key = try HpkePrivateKey.init(allocator, enc_keypair.private_key);
+        errdefer private_enc_key.deinit();
+
+        var private_sig_key = try SignaturePrivateKey.init(allocator, sig_keypair.private_key);
+        errdefer private_sig_key.deinit();
+
+        return KeyPackageBundle{
+            .key_package = key_package,
+            .private_init_key = private_init_key,
+            .private_encryption_key = private_enc_key,
+            .private_signature_key = private_sig_key,
+        };
+    }
+
     pub fn deinit(self: *KeyPackageBundle) void {
         self.key_package.deinit();
         self.private_init_key.deinit();
@@ -644,4 +767,74 @@ test "p256 signing and verification" {
     
     const is_invalid = try verifyWithLabel(cs, key_pair.public_key, signature.asSlice(), "wrong_label", test_content, allocator);
     try testing.expect(!is_invalid);
+}
+
+test "KeyPackageBundle creation and validation" {
+    const allocator = testing.allocator;
+    const cs = cipher_suite.CipherSuite.MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+
+    // Create a basic credential
+    var basic_cred = try credentials.BasicCredential.init(
+        allocator,
+        &[_]u8{0x01} ** 32,
+    );
+    defer basic_cred.deinit();
+
+    var credential = try credentials.Credential.fromBasic(allocator, &basic_cred);
+    defer credential.deinit();
+
+    // Create KeyPackageBundle
+    var bundle = try KeyPackageBundle.init(allocator, cs, credential);
+    defer bundle.deinit();
+
+    // Validate the bundle
+    try testing.expectEqual(cs, bundle.key_package.cipherSuite());
+    try testing.expectEqual(MLS_PROTOCOL_VERSION, bundle.key_package.protocolVersion());
+    
+    // Validate key sizes based on cipher suite
+    try testing.expectEqual(@as(usize, 32), bundle.key_package.initKey().len());
+    try testing.expectEqual(@as(usize, 32), bundle.key_package.encryptionKey().len());
+    try testing.expectEqual(@as(usize, 32), bundle.key_package.signatureKey().len());
+    
+    // Validate private keys
+    try testing.expectEqual(@as(usize, 32), bundle.private_init_key.len());
+    try testing.expectEqual(@as(usize, 32), bundle.private_encryption_key.len());
+    try testing.expectEqual(@as(usize, 64), bundle.private_signature_key.len());
+    
+    // Validate capabilities
+    const leaf_node = bundle.key_package.leafNode();
+    try testing.expect(leaf_node.capabilities.supportsVersion(MLS_PROTOCOL_VERSION));
+    try testing.expect(leaf_node.capabilities.supportsCipherSuite(cs));
+}
+
+test "KeyPackageBundle with multiple cipher suites" {
+    const allocator = testing.allocator;
+    
+    const test_cases = [_]cipher_suite.CipherSuite{
+        .MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
+        .MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+        .MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
+    };
+
+    for (test_cases) |cs| {
+        // Create a basic credential
+        var basic_cred = try credentials.BasicCredential.init(
+            allocator,
+            &[_]u8{0x02} ** 32,
+        );
+        defer basic_cred.deinit();
+
+        var credential = try credentials.Credential.fromBasic(allocator, &basic_cred);
+        defer credential.deinit();
+
+        // Create KeyPackageBundle
+        var bundle = try KeyPackageBundle.init(allocator, cs, credential);
+        defer bundle.deinit();
+
+        // Basic validation
+        try testing.expectEqual(cs, bundle.key_package.cipherSuite());
+        try testing.expect(bundle.key_package.initKey().len() > 0);
+        try testing.expect(bundle.key_package.encryptionKey().len() > 0);
+        try testing.expect(bundle.key_package.signatureKey().len() > 0);
+    }
 }

@@ -14,6 +14,7 @@ pub const key_package = @import("key_package.zig");
 pub const leaf_node = @import("leaf_node.zig");
 pub const tree_kem = @import("tree_kem.zig");
 pub const mls_group = @import("mls_group.zig");
+pub const nostr_extensions = @import("nostr_extensions.zig");
 
 pub export fn add(a: i32, b: i32) i32 {
     return a + b;

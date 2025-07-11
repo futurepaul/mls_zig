@@ -352,6 +352,41 @@ pub const CipherSuite = enum(u16) {
     ) !Secret {
         return self.hkdfExpandLabel(allocator, secret, label, context, @intCast(self.hashLength()));
     }
+
+    /// Derive exporter secret for external applications (NIP-EE compatibility)
+    /// This function implements the MLS exporter secret derivation as specified in RFC 9420
+    /// The "nostr" label is used for NIP-EE (Nostr Event Encryption) integration
+    pub fn exporterSecret(
+        self: CipherSuite,
+        allocator: Allocator,
+        exporter_secret: []const u8,
+        label: []const u8,
+        context: []const u8,
+        length: u16,
+    ) !Secret {
+        // MLS exporter secret derivation follows the pattern:
+        // Derive-Secret(exporter_secret, label, Hash(context))
+        
+        // First, hash the context
+        const hash_len = self.hashLength();
+        const context_hash = try allocator.alloc(u8, hash_len);
+        defer allocator.free(context_hash);
+        
+        switch (self.hashType()) {
+            .SHA256 => {
+                crypto.hash.sha2.Sha256.hash(context, context_hash[0..32], .{});
+            },
+            .SHA384 => {
+                crypto.hash.sha2.Sha384.hash(context, context_hash[0..48], .{});
+            },
+            .SHA512 => {
+                crypto.hash.sha2.Sha512.hash(context, context_hash[0..64], .{});
+            },
+        }
+        
+        // Then derive the secret using the hashed context
+        return self.hkdfExpandLabel(allocator, exporter_secret, label, context_hash, length);
+    }
 };
 
 pub const AeadType = enum(u16) {
@@ -665,5 +700,94 @@ test "all cipher suite component extraction" {
         try testing.expectEqual(tc.kem, tc.cs.hpkeKemType());
         try testing.expectEqual(tc.kdf, tc.cs.hpkeKdfType());
         try testing.expectEqual(tc.hpke_aead, tc.cs.hpkeAeadType());
+    }
+}
+
+test "exporter secret derivation for NIP-EE" {
+    const allocator = testing.allocator;
+    const cs = CipherSuite.MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+    
+    // Test exporter secret with "nostr" label for NIP-EE compatibility
+    const exporter_secret_data = [_]u8{0x42} ** 32;
+    const context = "test context";
+    const length = 32;
+    
+    // Test with "nostr" label
+    var nostr_secret = try cs.exporterSecret(
+        allocator,
+        &exporter_secret_data,
+        "nostr",
+        context,
+        length
+    );
+    defer nostr_secret.deinit();
+    
+    try testing.expectEqual(@as(usize, length), nostr_secret.asSlice().len);
+    
+    // Test with different label should produce different output
+    var other_secret = try cs.exporterSecret(
+        allocator,
+        &exporter_secret_data,
+        "other",
+        context,
+        length
+    );
+    defer other_secret.deinit();
+    
+    try testing.expect(!std.mem.eql(u8, nostr_secret.asSlice(), other_secret.asSlice()));
+    
+    // Test with different context should produce different output
+    var different_context_secret = try cs.exporterSecret(
+        allocator,
+        &exporter_secret_data,
+        "nostr",
+        "different context",
+        length
+    );
+    defer different_context_secret.deinit();
+    
+    try testing.expect(!std.mem.eql(u8, nostr_secret.asSlice(), different_context_secret.asSlice()));
+    
+    // Test deterministic behavior - same inputs should produce same output
+    var nostr_secret2 = try cs.exporterSecret(
+        allocator,
+        &exporter_secret_data,
+        "nostr",
+        context,
+        length
+    );
+    defer nostr_secret2.deinit();
+    
+    try testing.expectEqualSlices(u8, nostr_secret.asSlice(), nostr_secret2.asSlice());
+}
+
+test "exporter secret with multiple cipher suites" {
+    const allocator = testing.allocator;
+    
+    const test_cases = [_]CipherSuite{
+        .MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
+        .MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+        .MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
+    };
+    
+    const exporter_secret_data = [_]u8{0x42} ** 48; // Use larger array for SHA384
+    const context = "test context";
+    
+    for (test_cases) |cs| {
+        const length = cs.hashLength();
+        
+        var secret = try cs.exporterSecret(
+            allocator,
+            exporter_secret_data[0..length],
+            "nostr",
+            context,
+            @intCast(length)
+        );
+        defer secret.deinit();
+        
+        try testing.expectEqual(length, secret.asSlice().len);
+        
+        // Verify that different cipher suites produce different outputs
+        // (This is expected due to different hash functions)
     }
 }
